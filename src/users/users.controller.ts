@@ -1,75 +1,87 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-  HttpCode,
   BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
   ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth-guard';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { sanitizeUser, sanitizeUsers } from './utils/user-sanitizer.util';
 
 @Controller('users')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN')
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
+  /**
+   * Routes d'administration pour gérer les utilisateurs
+   * Accessible uniquement aux ADMIN grâce à JwtAuthGuard + RolesGuard
+   */
+
   @Post()
   @HttpCode(201)
-  create(@Body() createUser: CreateUserDto) {
-    const user = this.usersService.create(createUser);
+  async create(@Body() createUser: CreateUserDto) {
+    const user = await this.usersService.create(createUser);
     if (!user) {
       throw new BadRequestException('User not created');
     }
-    return user;
+    return sanitizeUser(user);
   }
 
   @Get()
   @HttpCode(200)
-  findAll(@Query('role') role?: 'ADMIN' | 'USER') {
-    const users = this.usersService.findAll(role);
+  async findAll(@Query('role') role?: 'ADMIN' | 'USER') {
+    const users = await this.usersService.findAll(role);
     if (!users) {
       throw new BadRequestException('No users found');
     }
-    return users;
+    return sanitizeUsers(users);
   }
 
   @Get(':id')
   @HttpCode(200)
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    const user = this.usersService.findOne(id);
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    const user = await this.usersService.findOne(id);
     if (!user) {
       throw new BadRequestException(`User with ID ${id} not found`);
     }
-    return user;
+    return sanitizeUser(user);
   }
 
   @Patch(':id')
   @HttpCode(200)
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUser: UpdateUserDto,
   ) {
-    const user = this.usersService.update(id, updateUser);
+    const user = await this.usersService.update(id, updateUser);
     if (!user) {
       throw new BadRequestException(`User with ID ${id} not updated`);
     }
-    return user;
+    return sanitizeUser(user);
   }
 
   @Delete(':id')
   @HttpCode(200)
-  remove(@Param('id', ParseIntPipe) id: number) {
-    const user = this.usersService.remove(id);
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    const user = await this.usersService.remove(id);
     if (!user) {
       throw new BadRequestException(`User with ID ${id} not deleted`);
     }
-    return user;
+    return sanitizeUser(user);
   }
 }

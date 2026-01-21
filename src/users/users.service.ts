@@ -25,30 +25,142 @@ export class UsersService {
     });
   }
 
+  // NOUVELLE MÉTHODE pour l'inscription avec token
+  async createWithVerification(
+    createUser: CreateUserDto,
+    verificationToken: string,
+  ): Promise<User> {
+    const hashedPassword = await bcrypt.hash(createUser.password, SALT_ROUNDS);
+    return this.databaseService.user.create({
+      data: {
+        email: createUser.email,
+        password: hashedPassword,
+        firstName: createUser.firstName,
+        lastName: createUser.lastName,
+        role: createUser.role || 'USER',
+        emailVerificationToken: verificationToken,
+        isEmailVerified: false,
+      },
+    });
+  }
+
+  // NOUVELLE MÉTHODE pour trouver par token de vérification
+  async findByVerificationToken(token: string): Promise<User | null> {
+    return this.databaseService.user.findFirst({
+      where: { emailVerificationToken: token },
+    });
+  }
+
+  // NOUVELLE MÉTHODE pour vérifier l'email
+  async verifyUserEmail(userId: number): Promise<User> {
+    return this.databaseService.user.update({
+      where: { id: userId },
+      data: {
+        isEmailVerified: true,
+        emailVerificationToken: null,
+      },
+    });
+  }
+
+  // NOUVELLE MÉTHODE pour mettre à jour le refresh token
+  async updateRefreshToken(
+    userId: number,
+    refreshToken: string,
+  ): Promise<void> {
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, SALT_ROUNDS);
+    await this.databaseService.user.update({
+      where: { id: userId },
+      data: { refreshToken: hashedRefreshToken },
+    });
+  }
+
+  // NOUVELLE MÉTHODE pour retirer le refresh token
+  async removeRefreshToken(userId: number): Promise<void> {
+    await this.databaseService.user.update({
+      where: { id: userId },
+      data: { refreshToken: null },
+    });
+  }
+
+  // NOUVELLE MÉTHODE pour définir le token de reset
+  async setPasswordResetToken(
+    userId: number,
+    token: string,
+    expires: Date,
+  ): Promise<void> {
+    console.log('💾 Sauvegarde du token de reset pour l\'utilisateur ID:', userId);
+    console.log('   Token:', token.substring(0, 10) + '...');
+    console.log('   Expire le:', expires);
+
+    await this.databaseService.user.update({
+      where: { id: userId },
+      data: {
+        passwordResetToken: token,
+        passwordResetExpires: expires,
+      },
+    });
+
+    console.log('✅ Token sauvegardé avec succès');
+  }
+
+  // NOUVELLE MÉTHODE pour trouver par token de reset
+  async findByResetToken(token: string): Promise<User | null> {
+    try {
+      console.log('🔍 Recherche du token:', token.substring(0, 10) + '...');
+
+      const user = await this.databaseService.user.findFirst({
+        where: {
+          passwordResetToken: token,
+        },
+      });
+
+      if (user) {
+        console.log('✅ Utilisateur trouvé avec ce token:', user.email);
+      } else {
+        console.log('❌ Aucun utilisateur trouvé avec ce token');
+      }
+
+      return user;
+    } catch (error) {
+      console.error('Erreur lors de la recherche par token de reset:', error);
+      throw error;
+    }
+  }
+
+  // NOUVELLE MÉTHODE pour réinitialiser le mot de passe
+  async resetPassword(userId: number, newPassword: string): Promise<void> {
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await this.databaseService.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        refreshToken: null, // Déconnecter l'utilisateur
+      },
+    });
+  }
+
   findAll(role?: 'ADMIN' | 'USER'): Promise<User[]> {
     if (role) {
       return this.databaseService.user.findMany({
-        where: {
-          role: role as Role,
-        },
+        where: { role: role as Role },
       });
     }
     return this.databaseService.user.findMany();
   }
 
   findOne(id: number): Promise<User | null> {
+    if (!id) throw new Error('ID is required');
     return this.databaseService.user.findUnique({
-      where: {
-        id,
-      },
+      where: { id },
     });
   }
 
   findByEmail(email: string): Promise<User | null> {
+    if (!email) throw new Error('Email is required');
     return this.databaseService.user.findUnique({
-      where: {
-        email,
-      },
+      where: { email },
     });
   }
 
@@ -58,9 +170,7 @@ export class UsersService {
       hashedPassword = await bcrypt.hash(updateUser.password, SALT_ROUNDS);
     }
     return this.databaseService.user.update({
-      where: {
-        id,
-      },
+      where: { id },
       data: {
         ...updateUser,
         password: hashedPassword ?? undefined,
@@ -71,9 +181,7 @@ export class UsersService {
 
   remove(id: number): Promise<User> {
     return this.databaseService.user.delete({
-      where: {
-        id,
-      },
+      where: { id },
     });
   }
 
