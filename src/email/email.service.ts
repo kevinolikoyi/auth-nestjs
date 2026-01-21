@@ -1,0 +1,100 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as nodemailer from 'nodemailer';
+
+@Injectable()
+export class EmailService {
+    private transporter: nodemailer.Transporter;
+
+    constructor(private configService: ConfigService) {
+        const host = this.configService.get<string>('EMAIL_HOST');
+        const port = parseInt(this.configService.get<string>('EMAIL_PORT') || '587', 10);
+        const user = this.configService.get<string>('EMAIL_USER');
+        const password = this.configService.get<string>('EMAIL_PASSWORD');
+
+        // Validation des variables requises
+        if (!host || !user || !password) {
+            console.warn('⚠️ Configuration email incomplète. Vérifiez vos variables d\'environnement.');
+        }
+
+        // secure = true pour le port 465 (SSL), false pour les autres ports (STARTTLS)
+        const secure = port === 465;
+
+        this.transporter = nodemailer.createTransport({
+            host,
+            port,
+            secure,
+            auth: {
+                user,
+                pass: password,
+            },
+        });
+    }
+
+    async sendVerificationEmail(email: string, token: string) {
+        const appUrl = this.configService.get('APP_URL') || 'http://localhost:3000';
+        const url = `${appUrl}/api/auth/verify-email?token=${token}`;
+
+        // Afficher les infos dans la console pour le développement
+        console.log('📧 Email de vérification:');
+        console.log('   À:', email);
+        console.log('   Token:', token);
+        console.log('   URL:', url);
+
+        // Envoyer l'email réel
+        try {
+            const fromEmail = this.configService.get<string>('EMAIL_FROM') || 'noreply@test.com';
+
+            await this.transporter.sendMail({
+                from: fromEmail,
+                to: email,
+                subject: 'Vérifiez votre adresse email',
+                html: `
+        <h1>Bienvenue !</h1>
+        <p>Merci de vous être inscrit. Veuillez cliquer sur le lien ci-dessous pour vérifier votre adresse email :</p>
+        <a href="${url}">Vérifier mon email</a>
+        <p>Ce lien expire dans 24 heures.</p>
+        <p>Token de vérification : <strong>${token}</strong></p>
+      `,
+            });
+            console.log('   ✅ Email envoyé avec succès');
+        } catch (error) {
+            console.error('   ❌ Erreur lors de l\'envoi de l\'email:', (error as Error).message);
+            throw error;
+        }
+    }
+
+    async sendPasswordResetEmail(email: string, token: string) {
+        const appUrl = this.configService.get('APP_URL') || 'http://localhost:3000';
+        const url = `${appUrl}/api/auth/reset-password?token=${token}`;
+
+        // Afficher les infos dans la console pour le développement
+        console.log('📧 Email de réinitialisation:');
+        console.log('   À:', email);
+        console.log('   Token:', token);
+        console.log('   URL:', url);
+
+        // Envoyer l'email réel
+        try {
+            const fromEmail = this.configService.get<string>('EMAIL_FROM') || 'noreply@test.com';
+
+            await this.transporter.sendMail({
+                from: fromEmail,
+                to: email,
+                subject: 'Réinitialisation de votre mot de passe',
+                html: `
+        <h1>Réinitialisation du mot de passe</h1>
+        <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous :</p>
+        <a href="${url}">Réinitialiser mon mot de passe</a>
+        <p>Ce lien expire dans 1 heure.</p>
+        <p>Token de réinitialisation : <strong>${token}</strong></p>
+        <p>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
+      `,
+            });
+            console.log('   ✅ Email envoyé avec succès');
+        } catch (error) {
+            console.error('   ❌ Erreur lors de l\'envoi de l\'email:', (error as Error).message);
+            throw error;
+        }
+    }
+}
