@@ -16,7 +16,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || true, // Allow all origins if no FRONTEND_URL set
     credentials: true,
   });
 
@@ -88,10 +88,23 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
+  // For Vercel serverless deployment
+  if (process.env.VERCEL) {
+    await app.init();
+    return app.getHttpAdapter().getInstance();
+  }
+
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
 
   console.log(`🚀 Application running on: http://localhost:${port}`);
   console.log(`📚 Swagger documentation: http://localhost:${port}/api/docs`);
 }
-void bootstrap();
+
+// For local development
+if (!process.env.VERCEL) {
+  void bootstrap();
+}
+
+// Export for Vercel
+export default bootstrap();
