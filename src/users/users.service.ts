@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Role } from 'generated/enums';
-import { DatabaseService } from 'src/database/database.service';
+import { DatabaseService } from '../database/database.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -25,7 +25,7 @@ export class UsersService {
     });
   }
 
-  // NOUVELLE MÉTHODE pour l'inscription avec token
+  // Methode pour l'inscription avec token
   async createWithVerification(
     createUser: CreateUserDto,
     verificationToken: string,
@@ -44,14 +44,14 @@ export class UsersService {
     });
   }
 
-  // NOUVELLE MÉTHODE pour trouver par token de vérification
+  // Methode pour trouver par token de vérification
   async findByVerificationToken(token: string): Promise<User | null> {
     return this.databaseService.user.findFirst({
       where: { emailVerificationToken: token },
     });
   }
 
-  // NOUVELLE MÉTHODE pour vérifier l'email
+  // Methode pour vérifier l'email
   async verifyUserEmail(userId: number): Promise<User> {
     return this.databaseService.user.update({
       where: { id: userId },
@@ -62,7 +62,7 @@ export class UsersService {
     });
   }
 
-  // NOUVELLE MÉTHODE pour mettre à jour le refresh token
+  // Methode pour mettre à jour le refresh token
   async updateRefreshToken(
     userId: number,
     refreshToken: string,
@@ -74,7 +74,7 @@ export class UsersService {
     });
   }
 
-  // NOUVELLE MÉTHODE pour retirer le refresh token
+  //  Methode pour retirer le refresh token
   async removeRefreshToken(userId: number): Promise<void> {
     await this.databaseService.user.update({
       where: { id: userId },
@@ -82,13 +82,13 @@ export class UsersService {
     });
   }
 
-  // NOUVELLE MÉTHODE pour définir le token de reset
+  //  Methode pour définir le token de reset
   async setPasswordResetToken(
     userId: number,
     token: string,
     expires: Date,
   ): Promise<void> {
-    console.log('💾 Sauvegarde du token de reset pour l\'utilisateur ID:', userId);
+    console.log('Sauvegarde du token de reset pour l\'utilisateur ID:', userId);
     console.log('   Token:', token.substring(0, 10) + '...');
     console.log('   Expire le:', expires);
 
@@ -100,13 +100,13 @@ export class UsersService {
       },
     });
 
-    console.log('✅ Token sauvegardé avec succès');
+    console.log('Token sauvegardé avec succès');
   }
 
-  // NOUVELLE MÉTHODE pour trouver par token de reset
+  //  Methode pour trouver par token de reset
   async findByResetToken(token: string): Promise<User | null> {
     try {
-      console.log('🔍 Recherche du token:', token.substring(0, 10) + '...');
+      console.log('Recherche du token:', token.substring(0, 10) + '...');
 
       const user = await this.databaseService.user.findFirst({
         where: {
@@ -115,9 +115,9 @@ export class UsersService {
       });
 
       if (user) {
-        console.log('✅ Utilisateur trouvé avec ce token:', user.email);
+        console.log('Utilisateur trouvé avec ce token:', user.email);
       } else {
-        console.log('❌ Aucun utilisateur trouvé avec ce token');
+        console.log('Aucun utilisateur trouvé avec ce token');
       }
 
       return user;
@@ -127,7 +127,7 @@ export class UsersService {
     }
   }
 
-  // NOUVELLE MÉTHODE pour réinitialiser le mot de passe
+  // Methode pour réinitialiser le mot de passe
   async resetPassword(userId: number, newPassword: string): Promise<void> {
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await this.databaseService.user.update({
@@ -161,6 +161,12 @@ export class UsersService {
     if (!email) throw new Error('Email is required');
     return this.databaseService.user.findUnique({
       where: { email },
+    });
+  }
+
+  async findById(id: number): Promise<User | null> {
+    return this.databaseService.user.findUnique({
+      where: { id },
     });
   }
 

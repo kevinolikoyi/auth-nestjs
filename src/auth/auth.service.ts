@@ -4,15 +4,16 @@ import {
     UnauthorizedException,
     BadRequestException,
 } from '@nestjs/common';
-import { UsersService } from 'src/users/users.service';
+import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
+import { CreateAdminDto } from './dto/create-admin.dto';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { LoginDto } from './dto/login.dto';
 import { ConfigService } from '@nestjs/config';
-import { EmailService } from 'src/email/email.service';
-import { UpdateUserDto } from 'src/users/dto/update-user.dto';
-import { sanitizeUser } from 'src/users/utils/user-sanitizer.util';
+import { EmailService } from '../email/email.service';
+import { UpdateUserDto } from '../users/dto/update-user.dto';
+import { sanitizeUser } from '../users/utils/user-sanitizer.util';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 
@@ -76,7 +77,9 @@ export class AuthService {
 
         // Vérifier si l'email est vérifié
         if (!user.isEmailVerified) {
-            throw new UnauthorizedException('Please verify your email before logging in');
+            throw new UnauthorizedException(
+                'Please verify your email before logging in',
+            );
         }
 
         const isPasswordValid = await bcrypt.compare(
@@ -149,7 +152,12 @@ export class AuthService {
             resetExpires,
         );
 
-        await this.emailService.sendPasswordResetEmail(user.email, resetToken);
+        try {
+            await this.emailService.sendPasswordResetEmail(user.email, resetToken);
+        } catch (error) {
+            // Log the error but don't fail the request
+            console.error('Failed to send password reset email:', error);
+        }
 
         return {
             message: 'If an account exists, a password reset link has been sent',
@@ -176,28 +184,34 @@ export class AuthService {
 
     async resetPassword(token: string, newPassword: string) {
         try {
-            console.log('🔑 Tentative de réinitialisation avec le token:', token.substring(0, 10) + '...');
+            console.log(
+                'Tentative de réinitialisation avec le token:',
+                token.substring(0, 10) + '...',
+            );
 
             const user = await this.usersService.findByResetToken(token);
 
             if (!user) {
-                console.log('❌ Token non trouvé dans la base de données');
+                console.log('Token non trouvé dans la base de données');
                 throw new BadRequestException('Invalid or expired reset token');
             }
 
-            console.log('✅ Utilisateur trouvé:', user.email);
+            console.log('Utilisateur trouvé:', user.email);
 
             if (!user.passwordResetExpires) {
-                console.log('❌ Token sans date d\'expiration');
+                console.log("Token sans date d'expiration");
                 throw new BadRequestException('Invalid or expired reset token');
             }
 
             if (user.passwordResetExpires < new Date()) {
-                console.log('❌ Token expiré. Date d\'expiration:', user.passwordResetExpires);
+                console.log(
+                    "Token expiré. Date d'expiration:",
+                    user.passwordResetExpires,
+                );
                 throw new BadRequestException('Invalid or expired reset token');
             }
 
-            console.log('✅ Token valide, réinitialisation du mot de passe...');
+            console.log('Token valide, réinitialisation du mot de passe...');
             await this.usersService.resetPassword(user.id, newPassword);
 
             return { message: 'Password reset successfully' };
@@ -207,16 +221,23 @@ export class AuthService {
                 throw error;
             }
             // Sinon, on log l'erreur et on relance une exception générique
-            console.error('Erreur lors de la réinitialisation du mot de passe:', error);
-            throw new BadRequestException('An error occurred while resetting the password');
+            console.error(
+                'Erreur lors de la réinitialisation du mot de passe:',
+                error,
+            );
+            throw new BadRequestException(
+                'An error occurred while resetting the password',
+            );
         }
     }
 
-    async createFirstAdmin(registerDto: RegisterDto) {
+    async createFirstAdmin(registerDto: CreateAdminDto) {
         // Vérifier s'il existe déjà un admin
         const existingAdmins = await this.usersService.findAll('ADMIN');
         if (existingAdmins.length > 0) {
-            throw new ConflictException('An admin already exists. Use the admin login to create users.');
+            throw new ConflictException(
+                'An admin already exists. Use the admin login to create users.',
+            );
         }
 
         // Créer le premier admin (usersService.create hash déjà le mot de passe)
@@ -228,8 +249,11 @@ export class AuthService {
         // Marquer l'email comme vérifié pour le premier admin
         await this.usersService.verifyUserEmail(admin.id);
 
+        // Récupérer l'utilisateur mis à jour
+        const updatedAdmin = await this.usersService.findById(admin.id);
+
         // Exclure tous les champs sensibles
-        const sanitizedAdmin = sanitizeUser(admin);
+        const sanitizedAdmin = sanitizeUser(updatedAdmin);
 
         return {
             message: 'First admin created successfully',
@@ -237,7 +261,10 @@ export class AuthService {
         };
     }
 
-    async updateProfile(userId: number, updateUserDto: Omit<UpdateUserDto, 'role'>) {
+    async updateProfile(
+        userId: number,
+        updateUserDto: Omit<UpdateUserDto, 'role'>,
+    ) {
         // On s'assure côté service que le rôle ne sera pas modifié via cette méthode
         const { role, ...dataWithoutRole } = updateUserDto as UpdateUserDto;
 
@@ -253,7 +280,7 @@ export class AuthService {
         const [accessToken, refreshToken] = await Promise.all([
             this.jwtService.signAsync(payload, {
                 secret: this.configService.get('JWT_ACCESS_SECRET'),
-                expiresIn: this.configService.get('JWT_ACCESS_EXPIRATION') || '15m',
+                expiresIn: this.configService.get('JWT_ACCESS_EXPIRATION') || '1m',
             }),
             this.jwtService.signAsync(payload, {
                 secret: this.configService.get('JWT_REFRESH_SECRET'),

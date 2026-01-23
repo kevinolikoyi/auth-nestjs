@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
     IsEmail,
     IsEnum,
@@ -7,12 +8,11 @@ import {
     MaxLength,
     MinLength,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class RegisterDto {
+export class CreateAdminDto {
     @ApiProperty({
-        description: 'Adresse email de l\'utilisateur (doit être unique)',
-        example: 'user@test.com',
+        description: 'Adresse email de l\'administrateur (doit être unique)',
+        example: 'admin@test.com',
         format: 'email'
     })
     @IsEmail({}, { message: 'Invalid email address' })
@@ -20,8 +20,8 @@ export class RegisterDto {
     email: string;
 
     @ApiProperty({
-        description: 'Mot de passe (8-20 caractères)',
-        example: 'User123!',
+        description: 'Mot de passe administrateur (8-20 caractères)',
+        example: 'Admin123!',
         minLength: 8,
         maxLength: 20
     })
@@ -32,8 +32,8 @@ export class RegisterDto {
     password: string;
 
     @ApiPropertyOptional({
-        description: 'Prénom de l\'utilisateur',
-        example: 'John',
+        description: 'Prénom de l\'administrateur',
+        example: 'Admin',
         minLength: 3,
         maxLength: 20
     })
@@ -43,8 +43,8 @@ export class RegisterDto {
     firstName?: string;
 
     @ApiPropertyOptional({
-        description: 'Nom de famille de l\'utilisateur',
-        example: 'Doe',
+        description: 'Nom de famille de l\'administrateur',
+        example: 'User',
         minLength: 3,
         maxLength: 20
     })
@@ -54,12 +54,12 @@ export class RegisterDto {
     lastName?: string;
 
     @ApiPropertyOptional({
-        description: 'Rôle de l\'utilisateur (USER par défaut)',
-        example: 'USER',
-        enum: ['USER', 'ADMIN'],
-        default: 'USER'
+        description: 'Rôle (toujours ADMIN pour cet endpoint)',
+        example: 'ADMIN',
+        enum: ['ADMIN'],
+        default: 'ADMIN'
     })
     @IsOptional({ message: 'Role is optional' })
-    @IsEnum(['USER', 'ADMIN'], { message: 'Role must be either USER or ADMIN' })
-    role?: 'USER' | 'ADMIN';
+    @IsEnum(['ADMIN'], { message: 'Role must be ADMIN' })
+    role?: 'ADMIN';
 }

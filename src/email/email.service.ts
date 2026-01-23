@@ -14,7 +14,7 @@ export class EmailService {
 
         // Validation des variables requises
         if (!host || !user || !password) {
-            console.warn('⚠️ Configuration email incomplète. Vérifiez vos variables d\'environnement.');
+            console.warn('Configuration email incomplète. Vérifiez vos variables d\'environnement.');
         }
 
         // secure = true pour le port 465 (SSL), false pour les autres ports (STARTTLS)
@@ -57,9 +57,9 @@ export class EmailService {
         <p>Token de vérification : <strong>${token}</strong></p>
       `,
             });
-            console.log('   ✅ Email envoyé avec succès');
+            console.log('Email envoyé avec succès');
         } catch (error) {
-            console.error('   ❌ Erreur lors de l\'envoi de l\'email:', (error as Error).message);
+            console.error('Erreur lors de l\'envoi de l\'email:', (error as Error).message);
             throw error;
         }
     }
@@ -91,9 +91,9 @@ export class EmailService {
         <p>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
       `,
             });
-            console.log('   ✅ Email envoyé avec succès');
+            console.log('Email envoyé avec succès');
         } catch (error) {
-            console.error('   ❌ Erreur lors de l\'envoi de l\'email:', (error as Error).message);
+            console.error('Erreur lors de l\'envoi de l\'email:', (error as Error).message);
             throw error;
         }
     }
