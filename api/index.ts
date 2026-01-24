@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express from 'express';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../dist/src/app.module';
+import { AppModule } from '../src/app.module';
 import { ExpressAdapter } from '@nestjs/platform-express';
 
 import helmet from 'helmet';
