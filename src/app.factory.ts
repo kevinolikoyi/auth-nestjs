@@ -88,6 +88,11 @@ export async function createApp(expressApp?: express.Express) {
     // Force Swagger à respecter le préfixe global 'api' -> /api/docs
     SwaggerModule.setup('docs', app, document, {
         useGlobalPrefix: true,
+        customCssUrl: 'https://unpkg.com/swagger-ui-dist/swagger-ui.css',
+        customJs: [
+            'https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js',
+            'https://unpkg.com/swagger-ui-dist/swagger-ui-standalone-preset.js',
+        ],
     });
 
     await app.init();
