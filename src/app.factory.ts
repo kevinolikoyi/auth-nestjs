@@ -85,8 +85,8 @@ export async function createApp(expressApp?: express.Express) {
         .build();
 
     const document = SwaggerModule.createDocument(app, config);
-    // Avec setGlobalPrefix('api'), 'docs' devient /api/docs
-    SwaggerModule.setup('docs', app, document);
+    // Swagger servi sur /api/docs
+    SwaggerModule.setup('api/docs', app, document);
 
     await app.init();
 
