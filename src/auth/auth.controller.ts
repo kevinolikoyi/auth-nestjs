@@ -34,7 +34,7 @@ export class AuthController {
     @Post('create-first-admin')
     @ApiOperation({
         summary: 'Création du premier admin',
-        description: 'Crée le premier administrateur du système. Cette route n\'est disponible qu\'une seule fois et uniquement en environnement de développement.'
+        description: 'Crée le premier administrateur du système. À utiliser une seule fois pour initialiser le compte administrateur.'
     })
     @ApiResponse({
         status: 201,
@@ -60,13 +60,9 @@ export class AuthController {
         }
     })
     @ApiResponse({ status: 409, description: 'Un administrateur existe déjà' })
-    @ApiResponse({ status: 400, description: 'Route non disponible en production' })
     @HttpCode(HttpStatus.CREATED)
     async createFirstAdmin(@Body() registerDto: CreateAdminDto) {
-        // Route disponible uniquement en développement
-        if (process.env.NODE_ENV === 'production') {
-            throw new BadRequestException('This route is not available in production');
-        }
+        // Route disponible pour initialiser le tout premier administrateur (dev ou prod)
         return this.authService.createFirstAdmin(registerDto);
     }
 

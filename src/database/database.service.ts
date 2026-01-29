@@ -9,7 +9,7 @@ export class DatabaseService extends PrismaClient implements OnModuleInit {
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
       throw new Error(
-        'DATABASE_URL manquant. Sur Vercel: Project → Settings → Environment Variables → ajoute DATABASE_URL.',
+        'DATABASE_URL manquant.'
       );
     }
 
