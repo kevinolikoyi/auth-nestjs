@@ -10,13 +10,14 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 export async function createApp(expressApp?: express.Express) {
     const adapter = new ExpressAdapter(expressApp ?? express());
     const app = await NestFactory.create(AppModule, adapter);
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
 
     app.use(helmet());
     app.use(cookieParser());
 
     app.setGlobalPrefix('api');
     app.enableCors({
-        origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+        origin: true,
         credentials: true,
     });
 
@@ -52,7 +53,7 @@ export async function createApp(expressApp?: express.Express) {
     `,
         )
         .setVersion('1.0.0')
-        .addServer('http://localhost:3000', 'Développement')
+        .addServer(appUrl, 'Serveur principal')
         .addBearerAuth(
             {
                 type: 'http',
