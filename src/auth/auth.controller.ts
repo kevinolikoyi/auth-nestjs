@@ -250,25 +250,32 @@ export class AuthController {
         return { accessToken: tokens.accessToken };
     }
 
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtRefreshGuard)
     @Post('logout')
     @ApiOperation({
-        summary: "Déconnexion d'un utilisateur",
-        description: `Déconnecte un utilisateur et invalide ses tokens.
-
-**Route protégée:** Nécessite un accessToken valide dans le header Authorization (Bearer token).
-Assurez-vous d'avoir configuré votre token dans "Authorize" avant d'appeler cet endpoint.`,
+        summary: 'Déconnexion d\'un utilisateur',
+        description: 'Déconnecte un utilisateur en révoquant son refresh token. Utilise le refresh token du cookie pour identifier l\'utilisateur.'
     })
-    @ApiResponse({ status: 200, description: 'Déconnexion réussie' })
-    @ApiResponse({ status: 401, description: 'Token invalide' })
-    @ApiBearerAuth('BearerAuth')
+    @ApiResponse({
+        status: 200,
+        description: 'Déconnexion réussie',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Logged out successfully' }
+            }
+        }
+    })
+    @ApiResponse({ status: 401, description: 'Refresh token invalide ou expiré' })
+    @ApiCookieAuth('CookieAuth')
     @HttpCode(HttpStatus.OK)
-    async logout(
-        @Request() req: AccessRequest,
-        @Res({ passthrough: true }) response: Response,
-    ) {
-        await this.authService.logout(req.user.id);
+    async logout(@Request() req, @Res({ passthrough: true }) response: Response) {
+        // Révoquer le refresh token côté serveur
+        await this.authService.logout(req.user.userId);
+
+        // Supprimer le cookie
         response.clearCookie('refreshToken');
+
         return { message: 'Logged out successfully' };
     }
 
