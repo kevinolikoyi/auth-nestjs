@@ -64,9 +64,51 @@ export class AuthService {
             throw new BadRequestException('Invalid or expired verification token');
         }
 
+        if (user.emailVerificationExpires && user.emailVerificationExpires < new Date()) {
+            throw new BadRequestException(
+                'Verification link expired. Please request a new one'
+            );
+        }
+
         await this.usersService.verifyUserEmail(user.id);
 
         return { message: 'Email verified successfully' };
+    }
+
+    async resendVerificationEmail(email: string) {
+        const user = await this.usersService.findByEmail(email);
+
+        if (!user) {
+            // Ne pas révéler si l'email existe
+            return { message: 'If the email exists, verification link has been sent' };
+        }
+
+        if (user.isEmailVerified) {
+            throw new BadRequestException('Email already verified');
+        }
+
+        // Vérifier le rate limiting (max 3 emails par heure)
+        const lastSent = user.lastVerificationEmailSent;
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+        if (lastSent && lastSent > oneHourAgo && user.verificationEmailCount >= 3) {
+            throw new BadRequestException(
+                'Too many requests. Please try again later'
+            );
+        }
+
+        // Générer nouveau token
+        const newToken = randomBytes(32).toString('hex');
+
+        await this.usersService.update(user.id, {
+            emailVerificationToken: newToken,
+            lastVerificationEmailSent: new Date(),
+            verificationEmailCount: user.verificationEmailCount + 1
+        });
+
+        await this.emailService.sendVerificationEmail(user.email, newToken);
+
+        return { message: 'Verification email sent successfully' };
     }
 
     async login(loginDto: LoginDto) {
@@ -88,6 +130,14 @@ export class AuthService {
         );
         if (!isPasswordValid) {
             throw new UnauthorizedException('Invalid email or password');
+        }
+
+        if (!user.isEmailVerified) {
+            throw new UnauthorizedException({
+                message: 'Please verify your email before logging in',
+                code: 'EMAIL_NOT_VERIFIED',
+                email: user.email, // Pour permettre au frontend de proposer un renvoi
+            });
         }
 
         // Générer access et refresh tokens

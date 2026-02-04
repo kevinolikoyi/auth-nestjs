@@ -157,6 +157,24 @@ export class AuthController {
         return this.authService.verifyEmail(query.token);
     }
 
+    @Post('resend-verification')
+    @ApiOperation({ summary: 'Renvoyer l\'email de vérification' })
+    @ApiResponse({
+        status: 200,
+        description: 'Email de vérification renvoyé avec succès',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Verification email sent successfully' },
+            },
+        },
+    })
+    @ApiResponse({ status: 400, description: 'Email invalide ou non trouvé' })
+    @HttpCode(HttpStatus.OK)
+    async resendVerification(@Body() dto: { email: string }) {
+        return this.authService.resendVerificationEmail(dto.email);
+    }
+
     // ÉTAPE 3 : Authentification
     @Post('login')
     @ApiOperation({

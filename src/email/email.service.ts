@@ -50,12 +50,41 @@ export class EmailService {
                 to: email,
                 subject: 'Vérifiez votre adresse email',
                 html: `
-        <h1>Bienvenue !</h1>
-        <p>Merci de vous être inscrit. Veuillez cliquer sur le lien ci-dessous pour vérifier votre adresse email :</p>
-        <a href="${url}">Vérifier mon email</a>
-        <p>Ce lien expire dans 24 heures.</p>
-        <p>Token de vérification : <strong>${token}</strong></p>
-      `,
+                <!DOCTYPE html>
+                <html>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h1 style="color: #4F46E5;">Bienvenue sur ${this.configService.get('APP_NAME')} ! 🎉</h1>
+                    
+                    <p>Merci de vous être inscrit. Pour activer votre compte, veuillez vérifier votre adresse email en cliquant sur le bouton ci-dessous :</p>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${url}" 
+                        style="background-color: #4F46E5; color: white; padding: 12px 30px; 
+                                text-decoration: none; border-radius: 5px; display: inline-block;">
+                        Vérifier mon email
+                        </a>
+                    </div>
+                    
+                    <p style="color: #666; font-size: 14px;">
+                        Ce lien expire dans 24 heures.
+                    </p>
+                    
+                    <p style="color: #666; font-size: 14px;">
+                        Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>
+                        <a href="${url}" style="color: #4F46E5;">${url}</a>
+                    </p>
+                    
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                    
+                    <p style="color: #999; font-size: 12px;">
+                        Vous avez reçu cet email car quelqu'un a créé un compte avec cette adresse.<br>
+                        Si ce n'était pas vous, ignorez simplement cet email.
+                    </p>
+                    </div>
+                </body>
+                </html>
+                `,
             });
             console.log('Email envoyé avec succès');
         } catch (error) {

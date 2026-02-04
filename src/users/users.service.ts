@@ -39,6 +39,7 @@ export class UsersService {
         lastName: createUser.lastName,
         role: createUser.role || 'USER',
         emailVerificationToken: verificationToken,
+        emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
         isEmailVerified: false,
       },
     });

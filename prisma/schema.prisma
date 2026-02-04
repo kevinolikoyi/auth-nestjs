@@ -28,6 +28,10 @@ model User {
   isEmailVerified        Boolean @default(false)
   emailVerificationToken String?
 
+  lastVerificationEmailSent DateTime?
+  verificationEmailCount    Int       @default(0)
+  emailVerificationExpires  DateTime?
+
   passwordResetToken   String?
   passwordResetExpires DateTime?
   refreshToken         String?
