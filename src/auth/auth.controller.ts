@@ -12,6 +12,7 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import type { Request as ExpressRequest, Response } from 'express';
+import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
@@ -22,6 +23,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth-guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
+import { JwtBlacklistService } from './strategies/jwt-blacklist.service';
 import {
     ApiTags,
     ApiOperation,
@@ -29,6 +31,13 @@ import {
     ApiBearerAuth,
     ApiCookieAuth,
 } from '@nestjs/swagger';
+
+interface JwtPayload {
+    sub: number;
+    email: string;
+    iat?: number;
+    exp?: number;
+}
 
 type RefreshRequest = ExpressRequest & {
     user: {
@@ -52,7 +61,11 @@ type LoginResult = {
 @ApiTags('Authentification')
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly authService: AuthService) { }
+    constructor(
+        private readonly authService: AuthService,
+        private readonly jwtService: JwtService,
+        private readonly jwtBlacklistService: JwtBlacklistService,
+    ) { }
 
     // ÉTAPE 1 : Création du premier admin
     @Post('create-first-admin')
@@ -90,7 +103,6 @@ export class AuthController {
     @ApiResponse({ status: 409, description: 'Un administrateur existe déjà' })
     @HttpCode(HttpStatus.CREATED)
     async createFirstAdmin(@Body() registerDto: CreateAdminDto) {
-        // Route disponible pour initialiser le tout premier administrateur (dev ou prod)
         return this.authService.createFirstAdmin(registerDto);
     }
 
@@ -250,11 +262,12 @@ export class AuthController {
         return { accessToken: tokens.accessToken };
     }
 
-    @UseGuards(JwtRefreshGuard)
+    // Logout sans guard pour gérer tokens invalides
     @Post('logout')
     @ApiOperation({
-        summary: 'Déconnexion d\'un utilisateur',
-        description: 'Déconnecte un utilisateur en révoquant son refresh token. Utilise le refresh token du cookie pour identifier l\'utilisateur.'
+        summary: 'Déconnexion complète',
+        description:
+            "Révoque l'access token ET le refresh token, puis supprime le cookie. Fonctionne même si les tokens sont invalides ou expirés.",
     })
     @ApiResponse({
         status: 200,
@@ -262,21 +275,91 @@ export class AuthController {
         schema: {
             type: 'object',
             properties: {
-                message: { type: 'string', example: 'Logged out successfully' }
-            }
-        }
+                message: { type: 'string', example: 'Logged out successfully' },
+                tokensRevoked: {
+                    type: 'object',
+                    properties: {
+                        accessToken: { type: 'boolean', example: true },
+                        refreshToken: { type: 'boolean', example: true },
+                    },
+                },
+            },
+        },
     })
-    @ApiResponse({ status: 401, description: 'Refresh token invalide ou expiré' })
-    @ApiCookieAuth('CookieAuth')
     @HttpCode(HttpStatus.OK)
-    async logout(@Request() req, @Res({ passthrough: true }) response: Response) {
-        // Révoquer le refresh token côté serveur
-        await this.authService.logout(req.user.userId);
+    async logout(
+        @Request() req: ExpressRequest,
+        @Res({ passthrough: true }) res: Response,
+    ) {
+        const tokensRevoked = {
+            accessToken: false,
+            refreshToken: false,
+        };
 
-        // Supprimer le cookie
-        response.clearCookie('refreshToken');
+        // 1. RÉVOQUER L'ACCESS TOKEN (si présent)
+        try {
+            const accessToken = req.headers.authorization?.replace('Bearer ', '');
 
-        return { message: 'Logged out successfully' };
+            if (accessToken) {
+                const decoded = this.jwtService.decode(accessToken) as JwtPayload;
+
+                if (decoded && decoded.exp && decoded.sub) {
+                    const expiresAt = new Date(decoded.exp * 1000);
+
+                    await this.jwtBlacklistService.revokeToken(
+                        accessToken,
+                        'access',
+                        decoded.sub,
+                        expiresAt,
+                        'logout',
+                    );
+
+                    tokensRevoked.accessToken = true;
+                }
+            }
+        } catch (error) {
+            console.log('Access token non valide ou déjà expiré:', (error as Error).message);
+        }
+
+        // 2. RÉVOQUER LE REFRESH TOKEN (si présent dans le cookie)
+        try {
+            const refreshToken = req.cookies?.refreshToken;
+
+            if (refreshToken) {
+                const decoded = this.jwtService.decode(refreshToken) as JwtPayload;
+
+                if (decoded && decoded.exp && decoded.sub) {
+                    const expiresAt = new Date(decoded.exp * 1000);
+
+                    await this.jwtBlacklistService.revokeToken(
+                        refreshToken,
+                        'refresh',
+                        decoded.sub,
+                        expiresAt,
+                        'logout',
+                    );
+
+                    // Révoquer également dans la base de données User
+                    await this.authService.logout(decoded.sub);
+
+                    tokensRevoked.refreshToken = true;
+                }
+            }
+        } catch (error) {
+            console.log('Refresh token non valide ou déjà expiré:', (error as Error).message);
+        }
+
+        // 3. TOUJOURS SUPPRIMER LE COOKIE (même si tokens invalides)
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+        });
+
+        return {
+            message: 'Logged out successfully',
+            tokensRevoked,
+        };
     }
 
     // ÉTAPE 4 : Gestion du mot de passe

@@ -39,3 +39,17 @@ model User {
   @@index([emailVerificationToken])
   @@index([passwordResetToken])
 }
+
+model TokenBlacklist {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  tokenType String
+  expiresAt DateTime
+  userId    Int
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([userId])
+  @@index([tokenType])
+}

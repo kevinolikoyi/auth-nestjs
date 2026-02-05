@@ -3,16 +3,21 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
-
+import { JwtBlacklistService } from './jwt-blacklist.service';
 
 export interface JwtRefreshPayload {
     sub: number;
     email: string;
+    iat?: number;
+    exp?: number;
 }
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
-    constructor(private configService: ConfigService) {
+    constructor(
+        private configService: ConfigService,
+        private jwtBlacklistService: JwtBlacklistService,
+    ) {
         super({
             jwtFromRequest: ExtractJwt.fromExtractors([
                 (request: Request) => {
@@ -30,6 +35,12 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
 
         if (!refreshToken) {
             throw new UnauthorizedException('Refresh token missing');
+        }
+
+        // Vérifier si le token est blacklisté
+        const isRevoked = await this.jwtBlacklistService.isTokenRevoked(refreshToken);
+        if (isRevoked) {
+            throw new UnauthorizedException('Token has been revoked');
         }
 
         return {
