@@ -39,7 +39,7 @@ export class UsersService {
         lastName: createUser.lastName,
         role: createUser.role || 'USER',
         emailVerificationToken: verificationToken,
-        emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
+        //emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
         isEmailVerified: false,
       },
     });
@@ -142,10 +142,16 @@ export class UsersService {
     });
   }
 
-  findAll(role?: 'ADMIN' | 'USER'): Promise<User[]> {
+  findAll(role?: 'ADMIN'): Promise<User[]> {
     if (role) {
       return this.databaseService.user.findMany({
-        where: { role: role as Role },
+        where: {
+          role: role as Role
+        },
+
+        orderBy: {
+          createdAt: 'desc',
+        },
       });
     }
     return this.databaseService.user.findMany();

@@ -44,7 +44,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Lister tous les utilisateurs (Admin)',
     description:
-      'Récupère la liste de tous les utilisateurs. Peut être filtré par rôle. Réservé aux administrateurs.',
+      'Récupère la liste de tous les utilisateurs. Réservé aux administrateurs.',
   })
   @ApiResponse({
     status: 200,
@@ -76,9 +76,9 @@ export class UsersController {
   })
   @ApiBearerAuth('BearerAuth')
   @HttpCode(200)
-  async findAll(@Query('role') role?: 'ADMIN' | 'USER') {
-    const users = await this.usersService.findAll(role);
-    if (!users) {
+  async findAll() {
+    const users = await this.usersService.findAll();
+    if (!users || users.length === 0) {
       throw new BadRequestException('No users found');
     }
     return sanitizeUsers(users);

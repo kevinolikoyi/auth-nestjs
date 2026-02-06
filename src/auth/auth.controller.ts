@@ -24,6 +24,7 @@ import { JwtAuthGuard } from './guards/jwt-auth-guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { JwtBlacklistService } from './strategies/jwt-blacklist.service';
+import { CurrentUser } from './decorators/current-user.decorator';
 import {
     ApiTags,
     ApiOperation,
@@ -553,5 +554,34 @@ Assurez-vous d'avoir configuré votre token dans "Authorize" avant d'appeler cet
             message: 'Profile updated successfully',
             user: updatedUser,
         };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('me')
+    @ApiOperation({
+        summary: 'Informations de l\'utilisateur connecté',
+        description: 'Retourne le profil de l\'utilisateur authentifié.',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Profil utilisateur',
+        schema: {
+            type: 'object',
+            properties: {
+                id: { type: 'number', example: 1 },
+                email: { type: 'string', example: 'user@test.com' },
+                firstName: { type: 'string', example: 'John' },
+                lastName: { type: 'string', example: 'Doe' },
+                role: { type: 'string', example: 'USER' },
+                isEmailVerified: { type: 'boolean', example: true },
+                createdAt: { type: 'string', format: 'date-time' },
+                updatedAt: { type: 'string', format: 'date-time' },
+            },
+        },
+    })
+    @ApiResponse({ status: 401, description: 'Non authentifié' })
+    @ApiBearerAuth('BearerAuth')
+    getMe(@CurrentUser() user) {
+        return user;
     }
 }

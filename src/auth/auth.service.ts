@@ -64,11 +64,11 @@ export class AuthService {
             throw new BadRequestException('Invalid or expired verification token');
         }
 
-        if (user.emailVerificationExpires && user.emailVerificationExpires < new Date()) {
+        /*if (user.emailVerificationExpires && user.emailVerificationExpires < new Date()) {
             throw new BadRequestException(
                 'Verification link expired. Please request a new one'
             );
-        }
+        }*/
 
         await this.usersService.verifyUserEmail(user.id);
 
@@ -88,23 +88,23 @@ export class AuthService {
         }
 
         // Vérifier le rate limiting (max 3 emails par heure)
-        const lastSent = user.lastVerificationEmailSent;
+        /*const lastSent = user.lastVerificationEmailSent;
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
         if (lastSent && lastSent > oneHourAgo && user.verificationEmailCount >= 3) {
             throw new BadRequestException(
                 'Too many requests. Please try again later'
             );
-        }
+        }*/
 
         // Générer nouveau token
         const newToken = randomBytes(32).toString('hex');
 
-        await this.usersService.update(user.id, {
+        /*await this.usersService.update(user.id, {
             emailVerificationToken: newToken,
             lastVerificationEmailSent: new Date(),
             verificationEmailCount: user.verificationEmailCount + 1
-        });
+        });*/
 
         await this.emailService.sendVerificationEmail(user.email, newToken);
 
