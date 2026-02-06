@@ -12,6 +12,7 @@ import { JwtPayload } from './strategies/jwt.strategy';
 import { LoginDto } from './dto/login.dto';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../email/email.service';
+import { DatabaseService } from '../database/database.service';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { sanitizeUser } from '../users/utils/user-sanitizer.util';
 import * as bcrypt from 'bcrypt';
@@ -24,6 +25,7 @@ export class AuthService {
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
         private readonly emailService: EmailService,
+        private readonly databaseService: DatabaseService,
     ) { }
 
     async register(registerDto: RegisterDto) {
@@ -64,15 +66,28 @@ export class AuthService {
             throw new BadRequestException('Invalid or expired verification token');
         }
 
-        /*if (user.emailVerificationExpires && user.emailVerificationExpires < new Date()) {
+        if (user.emailVerificationExpires && user.emailVerificationExpires < new Date()) {
             throw new BadRequestException(
                 'Verification link expired. Please request a new one'
             );
-        }*/
+        }
 
-        await this.usersService.verifyUserEmail(user.id);
+        // Recharge l’utilisateur mis à jour
+        const updatedUser = await this.usersService.verifyUserEmail(user.id);
 
-        return { message: 'Email verified successfully' };
+        // Générer des tokens pour connexion automatique
+        const tokens = await this.generateTokens(updatedUser.id, updatedUser.email, updatedUser.role);
+        await this.usersService.updateRefreshToken(updatedUser.id, tokens.refreshToken);
+
+        const sanitizedUser = sanitizeUser(updatedUser);
+
+        return {
+            message: 'Email verified successfully',
+            user: sanitizedUser,
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            autoLogin: true,
+        };
     }
 
     async resendVerificationEmail(email: string) {
@@ -88,23 +103,28 @@ export class AuthService {
         }
 
         // Vérifier le rate limiting (max 3 emails par heure)
-        /*const lastSent = user.lastVerificationEmailSent;
+        const lastSent = user.lastVerificationEmailSent;
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
         if (lastSent && lastSent > oneHourAgo && user.verificationEmailCount >= 3) {
             throw new BadRequestException(
                 'Too many requests. Please try again later'
             );
-        }*/
+        }
 
         // Générer nouveau token
         const newToken = randomBytes(32).toString('hex');
 
-        /*await this.usersService.update(user.id, {
-            emailVerificationToken: newToken,
-            lastVerificationEmailSent: new Date(),
-            verificationEmailCount: user.verificationEmailCount + 1
-        });*/
+        await this.databaseService.user.update({
+            where: { id: user.id },
+            data: {
+                emailVerificationToken: newToken,
+                emailVerificationExpires: new Date(Date.now() + 60 * 1000), // 1 minute
+                lastVerificationEmailSent: new Date(),
+                verificationEmailCount:
+                    lastSent && lastSent > oneHourAgo ? user.verificationEmailCount + 1 : 1
+            }
+        });
 
         await this.emailService.sendVerificationEmail(user.email, newToken);
 

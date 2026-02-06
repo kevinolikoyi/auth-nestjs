@@ -18,6 +18,7 @@ import { RegisterDto } from './dto/register.dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendVerificationDto } from './dto/resend-email.dto'
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth-guard';
@@ -152,7 +153,7 @@ export class AuthController {
     @ApiOperation({
         summary: "Vérification de l'email",
         description:
-            "Vérifie le token d'email envoyé lors de l'inscription pour activer le compte utilisateur.",
+            "Vérifie le token d'email et connecte automatiquement l'utilisateur si le token est valide.",
     })
     @ApiResponse({
         status: 200,
@@ -164,27 +165,55 @@ export class AuthController {
             },
         },
     })
-    @ApiResponse({ status: 400, description: 'Token invalide ou expiré' })
+    @ApiResponse({
+        status: 400,
+        description:
+            'Token invalide ou expiré. Utilisez POST /auth/resend-verification pour obtenir un nouveau lien.'
+    })
     @HttpCode(HttpStatus.OK)
-    async verifyEmail(@Query() query: VerifyEmailDto) {
-        return this.authService.verifyEmail(query.token);
+    async verifyEmail(
+        @Query() query: VerifyEmailDto,
+        @Res({ passthrough: true }) response: Response,
+    ) {
+        const result = await this.authService.verifyEmail(query.token);
+
+        // Si la vérification inclut une connexion automatique
+        if (result.autoLogin && result.refreshToken) {
+            // Définir le refresh token dans un cookie HTTPOnly
+            response.cookie('refreshToken', result.refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 jours
+            });
+
+            // Ne pas retourner le refresh token dans la réponse
+            const { refreshToken, ...responseData } = result;
+            return responseData;
+        }
+
+        return result;
     }
 
     @Post('resend-verification')
-    @ApiOperation({ summary: 'Renvoyer l\'email de vérification' })
+    @ApiOperation({
+        summary: "Renvoyer l'email de vérification",
+        description: `Envoie un nouveau lien de vérification. 
+    
+    **Limitations:**
+    - Maximum 3 emails par heure
+    - Le nouveau lien expire après 1 minute`
+    })
     @ApiResponse({
         status: 200,
         description: 'Email de vérification renvoyé avec succès',
-        schema: {
-            type: 'object',
-            properties: {
-                message: { type: 'string', example: 'Verification email sent successfully' },
-            },
-        },
     })
-    @ApiResponse({ status: 400, description: 'Email invalide ou non trouvé' })
+    @ApiResponse({
+        status: 400,
+        description: 'Email déjà vérifié ou trop de tentatives (max 3/heure)'
+    })
     @HttpCode(HttpStatus.OK)
-    async resendVerification(@Body() dto: { email: string }) {
+    async resendVerification(@Body() dto: ResendVerificationDto) {
         return this.authService.resendVerificationEmail(dto.email);
     }
 

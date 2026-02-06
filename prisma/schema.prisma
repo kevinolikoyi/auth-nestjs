@@ -25,16 +25,17 @@ model User {
   lastName  String?
   role      Role    @default(USER)
 
-  isEmailVerified        Boolean @default(false)
-  emailVerificationToken String?
+  isEmailVerified          Boolean   @default(false)
+  emailVerificationToken   String?
+  emailVerificationExpires DateTime?
 
   lastVerificationEmailSent DateTime?
   verificationEmailCount    Int       @default(0)
-  emailVerificationExpires  DateTime?
 
   passwordResetToken   String?
   passwordResetExpires DateTime?
-  refreshToken         String?
+
+  refreshToken String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

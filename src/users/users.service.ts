@@ -40,6 +40,7 @@ export class UsersService {
         role: createUser.role || 'USER',
         emailVerificationToken: verificationToken,
         //emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
+        emailVerificationExpires: new Date(Date.now() + 60 * 1000), // 1 minute
         isEmailVerified: false,
       },
     });
@@ -59,6 +60,9 @@ export class UsersService {
       data: {
         isEmailVerified: true,
         emailVerificationToken: null,
+        emailVerificationExpires: null,
+        verificationEmailCount: 0,
+        lastVerificationEmailSent: null,
       },
     });
   }
